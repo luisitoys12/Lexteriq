@@ -1,0 +1,499 @@
+/* ============================================================
+   LEXTERIQ — YouTube Sidebar Panel CSS
+   Se inyecta en youtube.com/watch via content script
+   ============================================================ */
+
+#lexteriq-root {
+  --lex-bg: #0f0f0f;
+  --lex-surface: #1a1a1a;
+  --lex-surface2: #242424;
+  --lex-border: rgba(255,255,255,0.08);
+  --lex-text: #f1f1f1;
+  --lex-muted: #aaaaaa;
+  --lex-faint: #666666;
+  --lex-primary: #6c63ff;
+  --lex-primary-glow: rgba(108,99,255,0.15);
+  --lex-green: #2ecc71;
+  --lex-yellow: #f1c40f;
+  --lex-red: #e74c3c;
+  --lex-orange: #e67e22;
+  --radius: 10px;
+  --radius-sm: 6px;
+  font-family: 'Roboto', 'YouTube Sans', system-ui, sans-serif;
+  font-size: 13px;
+  color: var(--lex-text);
+}
+
+/* ---- CONTENEDOR PRINCIPAL ---- */
+#lexteriq-panel {
+  width: 340px;
+  min-width: 300px;
+  background: var(--lex-bg);
+  border: 1px solid var(--lex-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  margin-bottom: 16px;
+  transition: all 0.2s ease;
+}
+
+#lexteriq-panel.collapsed {
+  min-height: 48px;
+}
+
+/* ---- HEADER ---- */
+.lex-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border-bottom: 1px solid var(--lex-border);
+  cursor: pointer;
+  user-select: none;
+}
+
+.lex-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: -0.3px;
+}
+
+.lex-logo-icon {
+  width: 22px;
+  height: 22px;
+  background: var(--lex-primary);
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 900;
+  color: #fff;
+}
+
+.lex-badge {
+  font-size: 9px;
+  background: var(--lex-primary);
+  color: #fff;
+  padding: 2px 6px;
+  border-radius: 20px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.lex-badge.pro { background: linear-gradient(135deg, #6c63ff, #a855f7); }
+.lex-badge.free { background: var(--lex-surface2); color: var(--lex-muted); }
+
+.lex-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lex-btn-icon {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: var(--lex-surface2);
+  border-radius: var(--radius-sm);
+  color: var(--lex-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  font-size: 12px;
+}
+.lex-btn-icon:hover { background: var(--lex-primary-glow); color: var(--lex-primary); }
+
+/* ---- TABS ---- */
+.lex-tabs {
+  display: flex;
+  background: var(--lex-surface);
+  border-bottom: 1px solid var(--lex-border);
+}
+
+.lex-tab {
+  flex: 1;
+  padding: 10px 4px;
+  border: none;
+  background: transparent;
+  color: var(--lex-faint);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: center;
+  border-bottom: 2px solid transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.lex-tab:hover { color: var(--lex-muted); }
+.lex-tab.active {
+  color: var(--lex-primary);
+  border-bottom-color: var(--lex-primary);
+  background: var(--lex-primary-glow);
+}
+.lex-tab-icon { font-size: 14px; }
+
+/* ---- CONTENIDO DE TABS ---- */
+.lex-content {
+  display: none;
+  padding: 14px;
+  max-height: 600px;
+  overflow-y: auto;
+}
+.lex-content.active { display: block; }
+.lex-content::-webkit-scrollbar { width: 4px; }
+.lex-content::-webkit-scrollbar-track { background: transparent; }
+.lex-content::-webkit-scrollbar-thumb { background: var(--lex-border); border-radius: 2px; }
+
+/* ---- SCORE SEO ---- */
+.lex-score-ring {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding: 14px;
+  background: var(--lex-surface);
+  border-radius: var(--radius);
+  border: 1px solid var(--lex-border);
+}
+
+.lex-ring-svg {
+  width: 72px;
+  height: 72px;
+  flex-shrink: 0;
+}
+
+.lex-ring-track { fill: none; stroke: var(--lex-surface2); stroke-width: 6; }
+.lex-ring-fill {
+  fill: none;
+  stroke-width: 6;
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+  transition: stroke-dashoffset 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.score-excellent .lex-ring-fill { stroke: var(--lex-green); }
+.score-good .lex-ring-fill { stroke: #27ae60; }
+.score-ok .lex-ring-fill { stroke: var(--lex-yellow); }
+.score-poor .lex-ring-fill { stroke: var(--lex-orange); }
+.score-bad .lex-ring-fill { stroke: var(--lex-red); }
+
+.lex-ring-number {
+  position: absolute;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--lex-text);
+}
+
+.lex-score-svg-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lex-score-info h3 {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 4px;
+  color: var(--lex-text);
+}
+.lex-score-label {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-weight: 600;
+  display: inline-block;
+  margin-bottom: 6px;
+}
+.label-excellent { background: rgba(46,204,113,0.15); color: var(--lex-green); }
+.label-good { background: rgba(39,174,96,0.15); color: #27ae60; }
+.label-ok { background: rgba(241,196,15,0.15); color: var(--lex-yellow); }
+.label-poor { background: rgba(230,126,34,0.15); color: var(--lex-orange); }
+.label-bad { background: rgba(231,76,60,0.15); color: var(--lex-red); }
+
+.lex-score-desc { font-size: 11px; color: var(--lex-muted); line-height: 1.5; }
+
+/* ---- MÉTRICAS GRID ---- */
+.lex-metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.lex-metric-card {
+  background: var(--lex-surface);
+  border: 1px solid var(--lex-border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  transition: border-color 0.15s;
+}
+.lex-metric-card:hover { border-color: var(--lex-primary); }
+
+.lex-metric-label {
+  font-size: 10px;
+  color: var(--lex-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.lex-metric-value {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--lex-text);
+  letter-spacing: -0.5px;
+  line-height: 1;
+  margin-bottom: 2px;
+}
+.lex-metric-sub {
+  font-size: 10px;
+  color: var(--lex-muted);
+}
+.lex-metric-trend {
+  font-size: 10px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.trend-up { color: var(--lex-green); }
+.trend-down { color: var(--lex-red); }
+.trend-neutral { color: var(--lex-muted); }
+
+/* ---- KEYWORDS ---- */
+.lex-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--lex-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.lex-keywords-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.lex-keyword-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 500;
+  border: 1px solid var(--lex-border);
+  background: var(--lex-surface);
+  color: var(--lex-text);
+  cursor: default;
+  transition: all 0.15s;
+}
+.lex-keyword-chip:hover {
+  background: var(--lex-primary-glow);
+  border-color: var(--lex-primary);
+  color: var(--lex-primary);
+}
+.lex-keyword-chip .kw-score {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+.kw-high { background: rgba(46,204,113,0.2); color: var(--lex-green); }
+.kw-med  { background: rgba(241,196,15,0.2); color: var(--lex-yellow); }
+.kw-low  { background: rgba(231,76,60,0.2); color: var(--lex-red); }
+
+.lex-keyword-locked {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: var(--lex-surface);
+  border: 1px dashed var(--lex-border);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  color: var(--lex-faint);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.lex-keyword-locked:hover { border-color: var(--lex-primary); color: var(--lex-primary); }
+
+/* ---- SEO CHECKLIST ---- */
+.lex-checklist { margin-bottom: 14px; }
+
+.lex-check-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 4px;
+  background: var(--lex-surface);
+  border: 1px solid var(--lex-border);
+  transition: border-color 0.15s;
+}
+.lex-check-item:hover { border-color: rgba(255,255,255,0.15); }
+
+.lex-check-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.check-pass { background: rgba(46,204,113,0.2); color: var(--lex-green); }
+.check-warn { background: rgba(241,196,15,0.2); color: var(--lex-yellow); }
+.check-fail { background: rgba(231,76,60,0.2); color: var(--lex-red); }
+
+.lex-check-text { font-size: 12px; color: var(--lex-text); line-height: 1.4; }
+.lex-check-hint { font-size: 10px; color: var(--lex-faint); margin-top: 2px; }
+
+/* ---- VELOCIDAD ---- */
+.lex-velocity-bar {
+  background: var(--lex-surface);
+  border: 1px solid var(--lex-border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  margin-bottom: 14px;
+}
+.lex-velocity-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--lex-muted);
+  margin-bottom: 8px;
+}
+.lex-velocity-track {
+  height: 6px;
+  background: var(--lex-surface2);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+.lex-velocity-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--lex-primary), #a855f7);
+  transition: width 1s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.lex-velocity-stats {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--lex-faint);
+}
+
+/* ---- UPGRADE CTA ---- */
+.lex-upgrade-card {
+  background: linear-gradient(135deg, rgba(108,99,255,0.15), rgba(168,85,247,0.15));
+  border: 1px solid rgba(108,99,255,0.3);
+  border-radius: var(--radius);
+  padding: 14px;
+  text-align: center;
+  margin-top: 12px;
+}
+.lex-upgrade-card h4 { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+.lex-upgrade-card p { font-size: 11px; color: var(--lex-muted); margin-bottom: 10px; }
+.lex-btn-upgrade {
+  width: 100%;
+  padding: 9px;
+  background: var(--lex-primary);
+  border: none;
+  border-radius: var(--radius-sm);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.3px;
+}
+.lex-btn-upgrade:hover { background: #5a52d5; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(108,99,255,0.4); }
+
+/* ---- LOADING SKELETON ---- */
+@keyframes lex-shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.lex-skeleton {
+  background: linear-gradient(90deg, var(--lex-surface) 25%, var(--lex-surface2) 50%, var(--lex-surface) 75%);
+  background-size: 800px 100%;
+  animation: lex-shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+.lex-skel-line { height: 12px; margin-bottom: 8px; border-radius: 6px; }
+.lex-skel-line.w60 { width: 60%; }
+.lex-skel-line.w80 { width: 80%; }
+.lex-skel-line.w40 { width: 40%; }
+.lex-skel-circle { width: 72px; height: 72px; border-radius: 50%; }
+
+/* ---- TOOLTIP ---- */
+[data-lex-tooltip] { position: relative; }
+[data-lex-tooltip]::after {
+  content: attr(data-lex-tooltip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #000;
+  color: #fff;
+  font-size: 10px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+  z-index: 9999;
+}
+[data-lex-tooltip]:hover::after { opacity: 1; }
+
+/* ---- TOGGLE BUTTON (fuera del panel) ---- */
+#lexteriq-toggle {
+  position: fixed;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 64px;
+  background: var(--lex-primary);
+  border: none;
+  border-radius: 8px 0 0 8px;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  z-index: 9998;
+  box-shadow: -2px 0 12px rgba(108,99,255,0.4);
+  transition: all 0.2s;
+  writing-mode: vertical-lr;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+#lexteriq-toggle:hover { width: 32px; }
