@@ -1,25 +1,16 @@
 {
   "manifest_version": 3,
   "name": "Lexteriq — YouTube Analytics",
-  "short_name": "Lexteriq",
   "version": "1.0.0",
-  "description": "Analiza videos de YouTube en tiempo real: SEO score, keywords, métricas de canal y más.",
-  "homepage_url": "https://lexteriq.com",
-  "default_locale": "es",
+  "description": "Análisis SEO, keywords y métricas de YouTube en tiempo real. Beta cerrada.",
   "icons": {
-    "16": "images/icon16.png",
-    "32": "images/icon32.png",
-    "48": "images/icon48.png",
-    "128": "images/icon128.png"
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
   },
   "action": {
-    "default_popup": "popup.html",
-    "default_icon": {
-      "16": "images/icon16.png",
-      "32": "images/icon32.png",
-      "48": "images/icon48.png",
-      "128": "images/icon128.png"
-    },
+    "default_popup": "src/popup/popup.html",
     "default_title": "Lexteriq"
   },
   "background": {
@@ -28,46 +19,30 @@
   },
   "content_scripts": [
     {
-      "matches": ["*://www.youtube.com/*", "*://studio.youtube.com/*"],
-      "exclude_matches": ["*://www.youtube.com/subscribe_embed*"],
+      "matches": ["https://www.youtube.com/*"],
       "js": ["src/content/youtube.js"],
-      "css": ["src/styles/panel.css"],
       "run_at": "document_idle"
     }
   ],
-  "options_page": "options.html",
   "permissions": [
-    "storage",
     "identity",
-    "tabs",
-    "scripting"
+    "storage",
+    "tabs"
   ],
   "host_permissions": [
-    "*://www.youtube.com/*",
-    "*://studio.youtube.com/*",
-    "*://www.googleapis.com/*",
-    "https://lexteriq-api.web.app/*"
+    "https://www.googleapis.com/*",
+    "https://*.supabase.co/*",
+    "https://www.youtube.com/*"
   ],
   "oauth2": {
     "client_id": "TU_GOOGLE_CLIENT_ID.apps.googleusercontent.com",
     "scopes": [
-      "openid",
-      "profile",
-      "email",
+      "https://www.googleapis.com/auth/userinfo.email",
+      "https://www.googleapis.com/auth/userinfo.profile",
       "https://www.googleapis.com/auth/youtube.readonly"
     ]
   },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
-  },
-  "web_accessible_resources": [
-    {
-      "resources": [
-        "images/*",
-        "src/styles/*",
-        "_locales/*"
-      ],
-      "matches": ["*://www.youtube.com/*", "*://studio.youtube.com/*"]
-    }
-  ]
+  }
 }

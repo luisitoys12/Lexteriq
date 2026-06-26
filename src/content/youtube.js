@@ -1,350 +1,287 @@
-/**
- * Lexteriq — Content Script para YouTube
- * Inyecta el panel de análisis en páginas de YouTube Watch
- */
+// ============================================
+// LEXTERIQ - YouTube Content Script
+// Inyecta panel lateral en youtube.com/watch
+// ============================================
 
-(function () {
+(function() {
   'use strict';
 
-  const LEXTERIQ_PANEL_ID = 'lexteriq-panel';
   let currentVideoId = null;
-  let panelVisible = true;
-
-  // ─── Inicialización ──────────────────────────────────────────────────────
-  function init() {
-    observeURLChanges();
-    if (isVideoPage()) {
-      const videoId = getVideoId();
-      if (videoId) injectPanel(videoId);
-    }
-  }
-
-  // Detecta cambios de URL (SPA navigation de YouTube)
-  function observeURLChanges() {
-    let lastURL = location.href;
-    new MutationObserver(() => {
-      if (location.href !== lastURL) {
-        lastURL = location.href;
-        handleURLChange();
-      }
-    }).observe(document.body, { childList: true, subtree: true });
-
-    // También escuchar el evento nativo de YouTube
-    window.addEventListener('yt-navigate-finish', handleURLChange);
-  }
-
-  function handleURLChange() {
-    if (isVideoPage()) {
-      const videoId = getVideoId();
-      if (videoId && videoId !== currentVideoId) {
-        currentVideoId = videoId;
-        removePanel();
-        setTimeout(() => injectPanel(videoId), 1200); // esperar que cargue el DOM
-      }
-    } else {
-      removePanel();
-      currentVideoId = null;
-    }
-  }
-
-  function isVideoPage() {
-    return location.pathname === '/watch' && location.search.includes('v=');
-  }
+  let panelInjected = false;
 
   function getVideoId() {
-    return new URLSearchParams(location.search).get('v');
+    const url = new URL(window.location.href);
+    return url.searchParams.get('v');
   }
 
-  // ─── Inyectar panel ──────────────────────────────────────────────────────
-  async function injectPanel(videoId) {
-    // Esperar a que exista el contenedor de YouTube
-    const container = await waitForElement('#secondary, #secondary-inner, ytd-watch-flexy');
-    if (!container) return;
-
-    // Crear panel
-    const panel = createPanel();
-    container.prepend(panel);
-    currentVideoId = videoId;
-
-    // Mostrar estado loading
-    showLoadingState();
-
-    // Pedir datos al background
-    chrome.runtime.sendMessage({ type: 'GET_VIDEO_DATA', videoId }, (response) => {
-      if (chrome.runtime.lastError) {
-        showErrorState('Error de conexión');
-        return;
-      }
-      if (response.needsLogin) {
-        showLoginPrompt();
-        return;
-      }
-      if (response.error) {
-        showErrorState(response.error);
-        return;
-      }
-      renderVideoData(response.data);
-      
-      // También cargar datos del canal
-      if (response.data?.channelId) {
-        chrome.runtime.sendMessage(
-          { type: 'GET_CHANNEL_DATA', channelId: response.data.channelId },
-          (chanRes) => { if (chanRes?.data) renderChannelData(chanRes.data); }
-        );
-      }
-    });
-  }
-
-  function createPanel() {
-    const panel = document.createElement('div');
-    panel.id = LEXTERIQ_PANEL_ID;
-    panel.innerHTML = `
-      <div class="lxt-panel">
-        <div class="lxt-header">
-          <div class="lxt-logo">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-              <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="#4f98a3" stroke-width="2" stroke-linejoin="round"/>
-              <path d="M2 17l10 5 10-5" stroke="#4f98a3" stroke-width="2" stroke-linejoin="round"/>
-              <path d="M2 12l10 5 10-5" stroke="#4f98a3" stroke-width="2" stroke-linejoin="round"/>
-            </svg>
-            <span class="lxt-brand">Lexteriq</span>
-          </div>
-          <div class="lxt-header-actions">
-            <button class="lxt-toggle-btn" id="lxt-toggle" title="Minimizar">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M18 15l-6-6-6 6"/>
-              </svg>
-            </button>
-          </div>
-        </div>
-        <div class="lxt-content" id="lxt-content">
-          <div class="lxt-loading" id="lxt-loading">
-            <div class="lxt-spinner"></div>
-            <span>Analizando video...</span>
-          </div>
-        </div>
-      </div>
-    `;
-
-    // Toggle minimize
-    panel.querySelector('#lxt-toggle').addEventListener('click', () => {
-      const content = panel.querySelector('#lxt-content');
-      const icon = panel.querySelector('#lxt-toggle svg');
-      panelVisible = !panelVisible;
-      content.style.display = panelVisible ? 'block' : 'none';
-      icon.style.transform = panelVisible ? '' : 'rotate(180deg)';
-    });
-
-    return panel;
-  }
-
-  function removePanel() {
-    const existing = document.getElementById(LEXTERIQ_PANEL_ID);
+  function createPanel(data) {
+    const existing = document.getElementById('lexteriq-panel');
     if (existing) existing.remove();
-  }
 
-  // ─── Render: datos del video ──────────────────────────────────────────────
-  function renderVideoData(data) {
-    const content = document.getElementById('lxt-content');
-    if (!content) return;
-
-    const seoColor = data.seoScore >= 70 ? '#6daa45' : data.seoScore >= 40 ? '#e8af34' : '#dd6974';
-    const seoLabel = data.seoScore >= 70 ? 'Bueno' : data.seoScore >= 40 ? 'Regular' : 'Bajo';
-
-    content.innerHTML = `
-      <!-- SEO Score -->
-      <div class="lxt-section">
-        <div class="lxt-section-title">SEO Score</div>
-        <div class="lxt-score-row">
-          <div class="lxt-score-circle" style="--score-color: ${seoColor}">
-            <svg viewBox="0 0 36 36" class="lxt-score-svg">
-              <path class="lxt-score-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
-              <path class="lxt-score-fill" stroke="${seoColor}"
-                stroke-dasharray="${data.seoScore}, 100"
-                d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
-            </svg>
-            <span class="lxt-score-num">${data.seoScore}</span>
-          </div>
-          <div class="lxt-score-details">
-            <div class="lxt-score-label" style="color: ${seoColor}">${seoLabel}</div>
-            <div class="lxt-score-hint">de 100 puntos</div>
-          </div>
-        </div>
+    const panel = document.createElement('div');
+    panel.id = 'lexteriq-panel';
+    panel.innerHTML = `
+      <div class="lx-header">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#4f98a3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Lexteriq</span>
+        <span class="lx-plan-badge">${data.planName || 'Free'}</span>
+        <button class="lx-close" id="lx-close-btn">×</button>
       </div>
 
-      <!-- Stats -->
-      <div class="lxt-section">
-        <div class="lxt-section-title">Estadísticas</div>
-        <div class="lxt-stats-grid">
-          <div class="lxt-stat">
-            <div class="lxt-stat-val">${formatNumber(data.stats.views)}</div>
-            <div class="lxt-stat-lbl">Vistas</div>
-          </div>
-          <div class="lxt-stat">
-            <div class="lxt-stat-val">${formatNumber(data.stats.likes)}</div>
-            <div class="lxt-stat-lbl">Likes</div>
-          </div>
-          <div class="lxt-stat">
-            <div class="lxt-stat-val">${formatNumber(data.stats.comments)}</div>
-            <div class="lxt-stat-lbl">Comentarios</div>
-          </div>
-          <div class="lxt-stat">
-            <div class="lxt-stat-val">${data.stats.engagementRate}%</div>
-            <div class="lxt-stat-lbl">Engagement</div>
-          </div>
-        </div>
+      <div class="lx-tabs">
+        <button class="lx-tab active" data-tab="overview">Overview</button>
+        <button class="lx-tab" data-tab="keywords">Keywords</button>
+        <button class="lx-tab" data-tab="seo">SEO</button>
+        <button class="lx-tab" data-tab="tags">Tags</button>
       </div>
 
-      <!-- SEO Checklist -->
-      <div class="lxt-section">
-        <div class="lxt-section-title">Checklist SEO</div>
-        <div class="lxt-checklist">
-          ${renderCheckItem('Título optimizado (30-60 chars)', data.titleLength >= 30 && data.titleLength <= 60, `${data.titleLength} caracteres`)}
-          ${renderCheckItem('Descripción completa (200+ chars)', data.descriptionLength >= 200, `${data.descriptionLength} chars`)}
-          ${renderCheckItem('Tags suficientes (10+)', data.tagCount >= 10, `${data.tagCount} tags`)}
-          ${renderCheckItem('Miniatura HD', !!data.thumbnail, '')}
-          ${renderCheckItem('Links en descripción', data.description?.includes('http'), '')}
-        </div>
-      </div>
-
-      <!-- Tags -->
-      ${data.tags.length > 0 ? `
-      <div class="lxt-section">
-        <div class="lxt-section-title">Tags del Video <span class="lxt-badge">${data.tags.length}</span></div>
-        <div class="lxt-tags">
-          ${data.tags.slice(0, 20).map(tag => `<span class="lxt-tag">${tag}</span>`).join('')}
-          ${data.tags.length > 20 ? `<span class="lxt-tag lxt-tag-more">+${data.tags.length - 20} más</span>` : ''}
-        </div>
-      </div>` : ''}
-
-      <!-- Keywords detectadas -->
-      <div class="lxt-section">
-        <div class="lxt-section-title">Keywords Detectadas</div>
-        <div class="lxt-tags">
-          ${data.keywords.map(kw => `<span class="lxt-tag lxt-tag-kw">${kw}</span>`).join('')}
-        </div>
-      </div>
-
-      <!-- Duración -->
-      <div class="lxt-section lxt-section-meta">
-        <span>⏱ ${data.duration}</span>
-        <span>📅 ${formatDate(data.publishedAt)}</span>
-      </div>
-    `;
-  }
-
-  function renderChannelData(channel) {
-    const content = document.getElementById('lxt-content');
-    if (!content) return;
-
-    // Insertar sección de canal al inicio del contenido
-    const channelSection = document.createElement('div');
-    channelSection.className = 'lxt-section lxt-channel-section';
-    channelSection.innerHTML = `
-      <div class="lxt-section-title">Canal</div>
-      <div class="lxt-channel-row">
-        ${channel.thumbnail ? `<img class="lxt-channel-thumb" src="${channel.thumbnail}" alt="${channel.title}">` : ''}
-        <div class="lxt-channel-info">
-          <div class="lxt-channel-name">${channel.title}</div>
-          <div class="lxt-channel-stats">
-            ${formatNumber(channel.stats.subscribers)} subs &bull;
-            ${formatNumber(channel.stats.videos)} videos
-          </div>
-        </div>
-      </div>
-    `;
-    content.insertBefore(channelSection, content.firstChild);
-  }
-
-  function renderCheckItem(label, pass, hint) {
-    return `
-      <div class="lxt-check-item">
-        <span class="lxt-check-icon ${pass ? 'lxt-pass' : 'lxt-fail'}">${pass ? '✓' : '✗'}</span>
-        <span class="lxt-check-label">${label}</span>
-        ${hint ? `<span class="lxt-check-hint">${hint}</span>` : ''}
-      </div>
-    `;
-  }
-
-  function showLoadingState() {
-    const content = document.getElementById('lxt-content');
-    if (content) {
-      content.innerHTML = `
-        <div class="lxt-loading">
-          <div class="lxt-spinner"></div>
-          <span>Analizando video...</span>
-        </div>
-      `;
-    }
-  }
-
-  function showErrorState(msg) {
-    const content = document.getElementById('lxt-content');
-    if (content) {
-      content.innerHTML = `
-        <div class="lxt-error">
-          <span>⚠️ ${msg}</span>
-          <button class="lxt-retry" onclick="location.reload()">Reintentar</button>
-        </div>
-      `;
-    }
-  }
-
-  function showLoginPrompt() {
-    const content = document.getElementById('lxt-content');
-    if (content) {
-      content.innerHTML = `
-        <div class="lxt-login-prompt">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-            <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="#4f98a3" stroke-width="2" stroke-linejoin="round"/>
-            <path d="M2 17l10 5 10-5" stroke="#4f98a3" stroke-width="2" stroke-linejoin="round"/>
-            <path d="M2 12l10 5 10-5" stroke="#4f98a3" stroke-width="2" stroke-linejoin="round"/>
+      <div class="lx-content" id="lx-tab-overview">
+        <div class="lx-seo-circle">
+          <svg viewBox="0 0 36 36" width="80" height="80">
+            <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#2d2c2a" stroke-width="3"/>
+            <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="${data.seoScore >= 70 ? '#6daa45' : data.seoScore >= 40 ? '#e8af34' : '#dd6974'}" stroke-width="3" stroke-dasharray="${data.seoScore || 0}, 100" stroke-linecap="round"/>
+            <text x="18" y="20.5" text-anchor="middle" fill="#cdccca" font-size="8" font-weight="bold">${data.seoScore || 0}</text>
           </svg>
-          <p>Inicia sesión para analizar videos</p>
-          <button class="lxt-btn-primary" id="lxt-signin-btn">Conectar con Google</button>
+          <span class="lx-seo-label">SEO Score</span>
         </div>
-      `;
-      document.getElementById('lxt-signin-btn')?.addEventListener('click', () => {
-        chrome.runtime.sendMessage({ type: 'SIGN_IN_GOOGLE' }, (res) => {
-          if (res.success) {
-            removePanel();
-            setTimeout(() => injectPanel(getVideoId()), 500);
-          }
-        });
-      });
+        <div class="lx-stats">
+          <div class="lx-stat"><span class="lx-stat-label">👁 Vistas</span><span class="lx-stat-val">${formatNumber(data.viewCount)}</span></div>
+          <div class="lx-stat"><span class="lx-stat-label">👍 Likes</span><span class="lx-stat-val">${formatNumber(data.likeCount)}</span></div>
+          <div class="lx-stat"><span class="lx-stat-label">💬 Comentarios</span><span class="lx-stat-val">${formatNumber(data.commentCount)}</span></div>
+          <div class="lx-stat"><span class="lx-stat-label">🏷 Tags</span><span class="lx-stat-val">${data.tags?.length || 0}</span></div>
+        </div>
+      </div>
+
+      <div class="lx-content lx-hidden" id="lx-tab-keywords">
+        <p class="lx-section-title">Top Keywords detectadas</p>
+        <div class="lx-keywords">
+          ${(data.keywords || []).slice(0, 15).map(k =>
+            `<span class="lx-keyword-chip">${k.word} <small>${k.count}</small></span>`
+          ).join('')}
+        </div>
+      </div>
+
+      <div class="lx-content lx-hidden" id="lx-tab-seo">
+        <p class="lx-section-title">Análisis SEO</p>
+        <div class="lx-seo-items">
+          <div class="lx-seo-item ${getTitleScore(data.title)}">
+            <span>📝 Título</span>
+            <span>${data.title?.length || 0} chars ${getTitleScoreText(data.title)}</span>
+          </div>
+          <div class="lx-seo-item ${data.tags?.length >= 5 ? 'good' : 'warn'}">
+            <span>🏷 Tags</span>
+            <span>${data.tags?.length || 0} tags ${data.tags?.length >= 5 ? '✓' : '⚠ Agregar más'}</span>
+          </div>
+          <div class="lx-seo-item ${getDescScore(data.description)}">
+            <span>📄 Descripción</span>
+            <span>${data.description?.length || 0} chars ${getDescScoreText(data.description)}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="lx-content lx-hidden" id="lx-tab-tags">
+        <p class="lx-section-title">Tags del video <small>(${data.tags?.length || 0})</small></p>
+        <div class="lx-tags-list">
+          ${(data.tags || []).map(t =>
+            `<span class="lx-tag">${t}</span>`
+          ).join('') || '<p class="lx-muted">Sin tags</p>'}
+        </div>
+      </div>
+    `;
+
+    // Inject styles
+    if (!document.getElementById('lexteriq-styles')) {
+      const style = document.createElement('style');
+      style.id = 'lexteriq-styles';
+      style.textContent = getLexteriqStyles();
+      document.head.appendChild(style);
     }
-  }
 
-  // ─── Helpers ─────────────────────────────────────────────────────────────
-  function formatNumber(num) {
-    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-    return num.toString();
-  }
+    // Inject into YouTube sidebar
+    const secondary = document.querySelector('#secondary') || document.querySelector('ytd-watch-flexy #secondary');
+    if (secondary) {
+      secondary.prepend(panel);
+      panelInjected = true;
+    }
 
-  function formatDate(iso) {
-    if (!iso) return '';
-    return new Date(iso).toLocaleDateString('es-MX', { year: 'numeric', month: 'short', day: 'numeric' });
-  }
-
-  function waitForElement(selector, timeout = 8000) {
-    return new Promise((resolve) => {
-      const el = document.querySelector(selector);
-      if (el) return resolve(el);
-      const observer = new MutationObserver(() => {
-        const found = document.querySelector(selector);
-        if (found) { observer.disconnect(); resolve(found); }
+    // Tab switching
+    panel.querySelectorAll('.lx-tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        panel.querySelectorAll('.lx-tab').forEach(t => t.classList.remove('active'));
+        panel.querySelectorAll('.lx-content').forEach(c => c.classList.add('lx-hidden'));
+        btn.classList.add('active');
+        document.getElementById(`lx-tab-${btn.dataset.tab}`)?.classList.remove('lx-hidden');
       });
-      observer.observe(document.body, { childList: true, subtree: true });
-      setTimeout(() => { observer.disconnect(); resolve(null); }, timeout);
+    });
+
+    document.getElementById('lx-close-btn')?.addEventListener('click', () => panel.remove());
+  }
+
+  function showLoadingPanel() {
+    const existing = document.getElementById('lexteriq-panel');
+    if (existing) existing.remove();
+    const panel = document.createElement('div');
+    panel.id = 'lexteriq-panel';
+    panel.innerHTML = `
+      <div class="lx-header">
+        <span>Lexteriq</span>
+        <button class="lx-close" id="lx-close-btn">×</button>
+      </div>
+      <div style="padding:24px;text-align:center;color:#797876">
+        <div class="lx-spinner"></div>
+        <p style="margin-top:12px;font-size:13px">Analizando video...</p>
+      </div>
+    `;
+    if (!document.getElementById('lexteriq-styles')) {
+      const style = document.createElement('style');
+      style.id = 'lexteriq-styles';
+      style.textContent = getLexteriqStyles();
+      document.head.appendChild(style);
+    }
+    const secondary = document.querySelector('#secondary');
+    if (secondary) secondary.prepend(panel);
+    document.getElementById('lx-close-btn')?.addEventListener('click', () => panel.remove());
+  }
+
+  async function analyzeCurrentVideo() {
+    const videoId = getVideoId();
+    if (!videoId || videoId === currentVideoId) return;
+    currentVideoId = videoId;
+    showLoadingPanel();
+    chrome.runtime.sendMessage({ action: 'ANALYZE_VIDEO', videoId }, (response) => {
+      if (response?.error) {
+        const panel = document.getElementById('lexteriq-panel');
+        if (panel) panel.innerHTML = `<div style="padding:16px;color:#dd6974">${response.error}</div>`;
+        return;
+      }
+      if (response?.data) createPanel(response.data);
     });
   }
 
-  // Iniciar
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
+  // Watch for YouTube navigation
+  let lastUrl = location.href;
+  new MutationObserver(() => {
+    const url = location.href;
+    if (url !== lastUrl) {
+      lastUrl = url;
+      currentVideoId = null;
+      if (url.includes('youtube.com/watch')) setTimeout(analyzeCurrentVideo, 1500);
+    }
+  }).observe(document, { subtree: true, childList: true });
+
+  if (location.href.includes('youtube.com/watch')) setTimeout(analyzeCurrentVideo, 2000);
+
+  // Helpers
+  function formatNumber(n) {
+    if (!n) return '0';
+    if (n >= 1000000) return (n/1000000).toFixed(1) + 'M';
+    if (n >= 1000) return (n/1000).toFixed(1) + 'K';
+    return n.toString();
+  }
+  function getTitleScore(title) {
+    const l = title?.length || 0;
+    return l >= 40 && l <= 70 ? 'good' : l >= 20 ? 'warn' : 'bad';
+  }
+  function getTitleScoreText(title) {
+    const l = title?.length || 0;
+    return l >= 40 && l <= 70 ? '✓ Óptimo' : l >= 20 ? '⚠ Mejorable' : '✗ Muy corto';
+  }
+  function getDescScore(desc) {
+    const l = desc?.length || 0;
+    return l >= 200 ? 'good' : l >= 100 ? 'warn' : 'bad';
+  }
+  function getDescScoreText(desc) {
+    const l = desc?.length || 0;
+    return l >= 200 ? '✓ Óptimo' : l >= 100 ? '⚠ Mejorable' : '✗ Muy corta';
   }
 
+  function getLexteriqStyles() {
+    return `
+      #lexteriq-panel {
+        background: #1c1b19;
+        border: 1px solid #393836;
+        border-radius: 12px;
+        margin-bottom: 16px;
+        font-family: 'Inter', -apple-system, sans-serif;
+        font-size: 13px;
+        color: #cdccca;
+        overflow: hidden;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+      }
+      .lx-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 14px;
+        background: #201f1d;
+        border-bottom: 1px solid #393836;
+        font-weight: 600;
+        font-size: 14px;
+      }
+      .lx-plan-badge {
+        background: #4f98a3;
+        color: #fff;
+        font-size: 10px;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 999px;
+        text-transform: uppercase;
+        margin-left: auto;
+      }
+      .lx-close {
+        background: none;
+        border: none;
+        color: #797876;
+        font-size: 18px;
+        cursor: pointer;
+        padding: 0 4px;
+        margin-left: 4px;
+      }
+      .lx-tabs {
+        display: flex;
+        gap: 0;
+        border-bottom: 1px solid #393836;
+        background: #1c1b19;
+      }
+      .lx-tab {
+        flex: 1;
+        padding: 8px 0;
+        background: none;
+        border: none;
+        color: #797876;
+        font-size: 12px;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        transition: all 180ms;
+      }
+      .lx-tab.active {
+        color: #4f98a3;
+        border-bottom-color: #4f98a3;
+      }
+      .lx-content { padding: 14px; }
+      .lx-hidden { display: none !important; }
+      .lx-seo-circle { display: flex; flex-direction: column; align-items: center; margin-bottom: 14px; }
+      .lx-seo-label { font-size: 11px; color: #797876; margin-top: 4px; }
+      .lx-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+      .lx-stat { background: #22211f; border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; }
+      .lx-stat-label { font-size: 11px; color: #797876; }
+      .lx-stat-val { font-size: 14px; font-weight: 600; color: #cdccca; }
+      .lx-section-title { font-size: 11px; color: #797876; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
+      .lx-keywords { display: flex; flex-wrap: wrap; gap: 6px; }
+      .lx-keyword-chip { background: #22211f; border: 1px solid #393836; border-radius: 999px; padding: 3px 10px; font-size: 12px; color: #cdccca; }
+      .lx-keyword-chip small { color: #4f98a3; margin-left: 4px; }
+      .lx-seo-items { display: flex; flex-direction: column; gap: 8px; }
+      .lx-seo-item { display: flex; justify-content: space-between; padding: 8px 10px; border-radius: 8px; font-size: 12px; }
+      .lx-seo-item.good { background: #3a4435; color: #6daa45; }
+      .lx-seo-item.warn { background: #4d4332; color: #e8af34; }
+      .lx-seo-item.bad  { background: #574848; color: #dd6974; }
+      .lx-tags-list { display: flex; flex-wrap: wrap; gap: 5px; }
+      .lx-tag { background: #22211f; border: 1px solid #393836; padding: 3px 8px; border-radius: 6px; font-size: 11px; color: #cdccca; }
+      .lx-muted { color: #797876; font-size: 12px; }
+      .lx-spinner { width: 28px; height: 28px; border: 3px solid #393836; border-top-color: #4f98a3; border-radius: 50%; animation: lx-spin 0.8s linear infinite; margin: 0 auto; }
+      @keyframes lx-spin { to { transform: rotate(360deg); } }
+    `;
+  }
 })();
